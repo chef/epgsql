@@ -460,11 +460,20 @@ executing({$s, <<>>}, State) ->
 
 %% CommandComplete
 executing({$C, Bin}, State) ->
+    %% After completing an extended query, the frontend should issue a
+    %% Sync message according to the PostgreSQL protocol flow docs
+    %% (http://www.postgresql.org/docs/9.1/static/protocol-flow.html)
+    %% in the extended query section.  FIXME: any reason for send,
+    %% notify vs notify, send? Since the communication is all async, I
+    %% don't think it really matters, but seems to me to make more
+    %% sense to send the sync before notify.
+    send(State, $S, []),
     notify(State, {complete, decode_complete(Bin)}),
     {next_state, ready, State};
 
 %% EmptyQueryResponse
 executing({$I, _Bin}, State) ->
+    send(State, $S, []),
     notify(State, {complete, empty}),
     {next_state, ready, State};
 
